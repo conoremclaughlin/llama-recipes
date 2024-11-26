@@ -204,7 +204,7 @@ class CustomOrvDataset(Dataset):
 
 
 def get_custom_dataset(
-    dataset_config: Dict, processor: any, split: str, split_ratio: float = 0.9
+    dataset_config, processor: any, split: str, split_ratio: float = 0.9
 ) -> Dataset:
     """
     Get custom dataset with specified split.
@@ -219,7 +219,8 @@ def get_custom_dataset(
         Appropriate dataset split
     """
     # Get prompt file path from config if provided
-    prompt_file = dataset_config.get("prompt_file", None)
+    # prompt_file = dataset_config.get("prompt_file", None)
+    prompt_file = None
 
     # Initialize the custom dataset
     full_dataset = CustomOrvDataset(
