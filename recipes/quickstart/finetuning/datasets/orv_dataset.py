@@ -221,12 +221,13 @@ def get_custom_dataset(
     # Get prompt file path from config if provided
     # prompt_file = dataset_config.get("prompt_file", None)
     prompt_file = None
+    random_prompts = False  # dataset_config.get("random_prompts", True),
 
     # Initialize the custom dataset
     full_dataset = CustomOrvDataset(
         data_dir="/content/drive/My Drive/training/orv",
         prompt_file=prompt_file,
-        random_prompts=dataset_config.get("random_prompts", True),
+        random_prompts=random_prompts,
     )
 
     # Calculate split sizes
