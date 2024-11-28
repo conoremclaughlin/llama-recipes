@@ -225,7 +225,8 @@ def get_custom_dataset(
 
     # Initialize the custom dataset
     full_dataset = CustomOrvDataset(
-        data_dir="/content/drive/My Drive/training/orv",
+        data_dir="/workspace/llama-recipes/recipes/quickstart/finetuning/datasets/orv",
+        # data_dir="/content/drive/My Drive/training/orv",
         prompt_file=prompt_file,
         random_prompts=random_prompts,
     )
