@@ -223,9 +223,12 @@ def get_custom_dataset(
     prompt_file = None
     random_prompts = False  # dataset_config.get("random_prompts", True),
 
+    data_dir = dataset_config.data_dir or "/content/drive/My Drive/training/orv"
     # Initialize the custom dataset
+    # scp -i ~/.ssh/id_inkwell_ed25519 -P 22108 -r ./orv root@194.68.245.29:/workspace/llama-recipes/recipes/quickstart/finetuning/datasets
     full_dataset = CustomOrvDataset(
-        data_dir="/workspace/llama-recipes/recipes/quickstart/finetuning/datasets/orv",
+        data_dir=data_dir,
+        # data_dir="/workspace/llama-recipes/recipes/quickstart/finetuning/datasets/orv",
         # data_dir="/content/drive/My Drive/training/orv",
         prompt_file=prompt_file,
         random_prompts=random_prompts,
