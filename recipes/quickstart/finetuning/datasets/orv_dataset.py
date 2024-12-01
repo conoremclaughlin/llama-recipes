@@ -182,7 +182,8 @@ class CustomOrvDataset(Dataset):
     def __len__(self) -> int:
         return len(self.data_pairs)
 
-    def __getitem__(self, idx: int) -> Dict:
+    # for Facebook's original finetuning examples
+    def __getitem_facebook__(self, idx: int) -> Dict:
         """Get a single sample with error handling."""
         pair = self.data_pairs[idx]
 
@@ -200,6 +201,34 @@ class CustomOrvDataset(Dataset):
         except Exception as e:
             self.logger.error(f"Error loading sample {idx}: {str(e)}")
             # Return a default sample or raise the error depending on your needs
+            raise
+
+    # for unsloth's implementation
+    def __getitem__(self, idx: int) -> Dict:
+        """Get a sample formatted in Unsloth's expected conversation format."""
+        pair = self.data_pairs[idx]
+
+        try:
+            image = Image.open(pair["image_path"]).convert("RGB")
+
+            conversation = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": self._get_prompt()},
+                        {"type": "image", "image": image},
+                    ],
+                },
+                {
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": pair["caption"].strip()}],
+                },
+            ]
+
+            return {"messages": conversation}
+
+        except Exception as e:
+            self.logger.error(f"Error loading sample {idx}: {str(e)}")
             raise
 
 
