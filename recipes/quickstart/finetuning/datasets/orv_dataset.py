@@ -172,7 +172,12 @@ class CustomOrvDataset(Dataset):
             "kim-dokja-degraded-fable",
             "orv-style",
             "manhwa drawn using omniscient reader's viewpoint style",
+            "Omniscient Reader's Viewpoint Manhwa",
+            "kim dokja,",
             "two speech bubbles",
+            "korean sound effects",
+            "1 thought bubble",
+            "1 speech bubble",
         ]
 
         # Patterns to remove completely (with trailing punctuation)
