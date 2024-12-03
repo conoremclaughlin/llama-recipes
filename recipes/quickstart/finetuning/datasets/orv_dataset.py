@@ -2,6 +2,7 @@
 # This software may be used and distributed according to the terms of the Llama 3 Community License Agreement.
 
 
+import re
 import os
 import glob
 import json
@@ -128,51 +129,6 @@ class CustomOrvDataset(Dataset):
                 )
         return self.PROMPT_TEMPLATES
 
-    def _validate_and_load_pairs(self) -> List[Dict[str, str]]:
-        """Validate and load image-text pairs with comprehensive error checking."""
-        valid_pairs = []
-
-        # Get all potential image files
-        image_files = []
-        for ext in self.SUPPORTED_IMG_FORMATS:
-            image_files.extend(glob.glob(os.path.join(self.data_dir, f"*{ext}")))
-
-        for image_path in sorted(image_files):
-            base_name = os.path.splitext(os.path.basename(image_path))[0]
-            text_path = os.path.join(self.data_dir, f"{base_name}.txt")
-
-            # Validate pair
-            if not os.path.exists(text_path):
-                self.logger.warning(f"Missing text file for image: {image_path}")
-                continue
-
-            try:
-                # Validate image
-                with Image.open(image_path) as img:
-                    img.verify()
-                    # Try converting to RGB to catch potential issues
-                    img = Image.open(image_path).convert("RGB")
-
-                # Validate text
-                with open(text_path, "r", encoding="utf-8") as f:
-                    caption = f.read().strip()
-                    if not caption:
-                        raise ValueError("Empty caption")
-
-                valid_pairs.append(
-                    {
-                        "image_path": image_path,
-                        "text_path": text_path,
-                        "caption": caption,
-                    }
-                )
-
-            except Exception as e:
-                self.logger.warning(f"Error validating pair {base_name}: {str(e)}")
-                continue
-
-        return valid_pairs
-
     def _get_prompt(self) -> str:
         """Get a prompt either randomly or sequentially."""
         if self.random_prompts:
@@ -203,29 +159,233 @@ class CustomOrvDataset(Dataset):
             # Return a default sample or raise the error depending on your needs
             raise
 
-    # for unsloth's implementation
+    def _clean_caption(self, caption: str) -> str:
+        """Clean captions by removing specific character form patterns and terms."""
+
+        # Specific terms to always remove
+        terms_to_remove = [
+            "yoo-joonghyuk",
+            "kim-dokja",
+            "jung-heewon",
+            "lee-hyunsung",
+            "lee-gilyoung",
+            "kim-dokja-degraded-fable",
+            "orv-style",
+            "manhwa drawn using omniscient reader's viewpoint style",
+            "two speech bubbles",
+        ]
+
+        # Patterns to remove completely (with trailing punctuation)
+        removal_patterns = {
+            'background': r'background-[a-z0-9-]+(?:[,.\s]+|$)',
+            'style': r'style-[a-z0-9-]+(?:[,.\s]+|$)',
+            'setting': r'setting-[a-z0-9-]+(?:[,.\s]+|$)',
+            'Kim Dokja': r'kim-dokja-[a-z0-9-]+(?:[,.\s]+|$)',
+            'Yoo Joonghyuk': r'yoo-joonghyuk-[a-z0-9-]+(?:[,.\s]+|$)',
+            'Jung Heewon': r'jung-heewon-[a-z0-9-]+(?:[,.\s]+|$)',
+            'Lee Hyunsung': r'lee-hyunsung-[a-z0-9-]+(?:[,.\s]+|$)',
+            'Shin Yooseung': r'shin-yooseung-[a-z0-9-]+(?:[,.\s]+|$)',
+            'Han Sooyoung': r'han-sooyoung-[a-z0-9-]+(?:[,.\s]+|$)',
+            'Lee Gilyoung': r'lee-gilyoung-[a-z0-9-]+(?:[,.\s]+|$)',
+            'Yoo Sangah': r'yoo-sangah-[a-z0-9-]+(?:[,.\s]+|$)',
+            'Lee Jihye': r'lee-jihye-[a-z0-9-]+(?:[,.\s]+|$)',
+            'Kim Namwoon': r'kim-namwoon-[a-z0-9-]+(?:[,.\s]+|$)',
+        }
+
+        # Character patterns with their replacements
+        character_patterns = {
+            # 'Kim Dokja': r'kim-dokja-[a-z-]+\b',
+            # 'Yoo Joonghyuk': r'yoo-joonghyuk-[a-z-]+\b',
+            # 'Jung Heewon': r'jung-heewon-[a-z-]+\b',
+            # 'Lee Hyunsung': r'lee-hyunsung-[a-z-]+\b',
+            # 'Shin Yooseung': r'shin-yooseung-[a-z-]+\b',
+            # 'Han Sooyoung': r'han-sooyoung-[a-z-]+\b',
+            # 'Lee Gilyoung': r'lee-gilyoung-[a-z-]+\b',
+            # 'Yoo Sangah': r'yoo-sangah-[a-z-]+\b',
+            # 'Lee Jihye': r'lee-jihye-[a-z-]+\b',
+            # 'Kim Namwoon': r'kim-namwoon-[a-z-]+\b',
+        }
+
+        cleaned_caption = caption
+
+        # Remove specific full terms with their trailing punctuation
+        for term in terms_to_remove:
+            for punct in [" ", ", ", ". "]:
+                cleaned_caption = cleaned_caption.replace(f"{term}{punct}", "")
+            if cleaned_caption.endswith(term):
+                cleaned_caption = cleaned_caption[: -len(term)]
+
+        # Handle complete removal patterns
+        for pattern_name, pattern in removal_patterns.items():
+            cleaned_caption = re.sub(pattern, '', cleaned_caption)
+
+        # Replace character form patterns with base names
+        for name, pattern in character_patterns.items():
+            cleaned_caption = re.sub(pattern, name, cleaned_caption)
+
+        # Clean up base character names if requested
+        base_names = [
+            "kim dokja",
+            "yoo joonghyuk",
+            "jung heewon",
+            # Add more base names as needed
+        ]
+
+        # Optionally remove base names too
+        for name in base_names:
+            for punct in [" ", ", ", ". "]:
+                cleaned_caption = cleaned_caption.replace(f"{name}{punct}", "")
+            if cleaned_caption.endswith(name):
+                cleaned_caption = cleaned_caption[: -len(name)]
+
+        # Clean up any double spaces and trim
+        cleaned_caption = " ".join(cleaned_caption.split())
+        # Clean up any trailing punctuation after our removals
+        cleaned_caption = re.sub(r'[,.]$', '', cleaned_caption)
+
+        return cleaned_caption.strip()
+
+    def _validate_and_load_pairs(self) -> List[Dict[str, str]]:
+        """Validate and load image-text pairs with both standard and who captions."""
+        valid_pairs = []
+
+        # Get all potential image files
+        image_files = []
+        for ext in self.SUPPORTED_IMG_FORMATS:
+            image_files.extend(glob.glob(os.path.join(self.data_dir, f"*{ext}")))
+
+        for image_path in sorted(image_files):
+            base_name = os.path.splitext(os.path.basename(image_path))[0]
+            text_path = os.path.join(self.data_dir, f"{base_name}.txt")
+            who_path = os.path.join(self.data_dir, f"{base_name}.who.txt")
+
+            try:
+                # Validate image
+                with Image.open(image_path) as img:
+                    img.verify()
+                    # Try converting to RGB to catch potential issues
+                    img = Image.open(image_path).convert("RGB")
+
+                caption = None
+                who_caption = None
+
+                # Try to load standard caption
+                if os.path.exists(text_path):
+                    with open(text_path, 'r', encoding='utf-8') as f:
+                        caption = f.read().strip()
+                        if not caption:
+                            self.logger.warning(f"Empty caption file: {text_path}")
+
+                # Try to load who caption
+                if os.path.exists(who_path):
+                    with open(who_path, 'r', encoding='utf-8') as f:
+                        who_caption = f.read().strip()
+                        if not who_caption:
+                            self.logger.warning(f"Empty who caption file: {who_path}")
+
+                # Require at least one type of caption
+                if not caption and not who_caption:
+                    self.logger.warning(
+                        f"No valid captions found for image: {image_path}"
+                    )
+                    continue
+
+                valid_pairs.append(
+                    {
+                        "image_path": image_path,
+                        "image_name": base_name,
+                        "caption": caption,
+                        "who_caption": who_caption,
+                    }
+                )
+
+            except Exception as e:
+                self.logger.warning(f"Error validating pair {base_name}: {str(e)}")
+                continue
+
+        return valid_pairs
+
+    def _create_qa_pairs(
+        self, image_name: str, caption: Optional[str], who_caption: Optional[str]
+    ) -> List[Dict]:
+        """Create structured Q&A pairs with both types of captions."""
+        qa_pairs = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "What comic, manhwa, or manga is this?"}
+                ],
+            },
+            {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "This is the Korean manhwa Omniscient Reader's Viewpoint, written by Sing Shong.",
+                    }
+                ],
+            },
+        ]
+
+        # Add who question if we have a who caption
+        if who_caption:
+            qa_pairs.extend(
+                [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Who appears in this image and where are they positioned?",
+                            }
+                        ],
+                    },
+                    {
+                        "role": "assistant",
+                        "content": [{"type": "text", "text": who_caption}],
+                    },
+                ]
+            )
+
+        # Add description question if we have a standard caption
+        if caption:
+            cleaned_caption = self._clean_caption(caption)
+            qa_pairs.extend(
+                [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Can you describe what's happening in this image?",
+                            }
+                        ],
+                    },
+                    {
+                        "role": "assistant",
+                        "content": [{"type": "text", "text": cleaned_caption}],
+                    },
+                ]
+            )
+
+        return qa_pairs
+
     def __getitem__(self, idx: int) -> Dict:
-        """Get a sample formatted in Unsloth's expected conversation format."""
+        """Get a sample with both caption types if available."""
         pair = self.data_pairs[idx]
 
         try:
             image = Image.open(pair["image_path"]).convert("RGB")
 
-            conversation = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": self._get_prompt()},
-                        {"type": "image", "image": image},
-                    ],
-                },
-                {
-                    "role": "assistant",
-                    "content": [{"type": "text", "text": pair["caption"].strip()}],
-                },
-            ]
+            # Create Q&A pairs using both caption types
+            qa_pairs = self._create_qa_pairs(
+                pair["image_name"], pair["caption"], pair["who_caption"]
+            )
 
-            return {"messages": conversation}
+            # Insert image into first question
+            qa_pairs[0]["content"].insert(0, {"type": "image", "image": image})
+
+            return {"messages": qa_pairs}
 
         except Exception as e:
             self.logger.error(f"Error loading sample {idx}: {str(e)}")
