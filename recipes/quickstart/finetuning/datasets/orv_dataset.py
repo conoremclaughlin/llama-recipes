@@ -410,12 +410,10 @@ class CustomOrvDataset(Dataset):
                 pair["image_name"], pair["caption"], pair["who_caption"]
             )
 
-            print(f'qa_pairs: {qa_pairs}')
-
             # Insert image into first question
             qa_pairs[0]["content"].insert(0, {"type": "image", "image": image})
 
-            return {"messages": qa_pairs, "qa_pairs": qa_pairs}
+            return {"messages": qa_pairs, "original": pair}
 
         except Exception as e:
             self.logger.error(f"Error loading sample {idx}: {str(e)}")
