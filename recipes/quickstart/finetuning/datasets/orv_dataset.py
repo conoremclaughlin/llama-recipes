@@ -306,9 +306,9 @@ class CustomOrvDataset(Dataset):
                         "who_caption": who_caption,
                     }
                 )
-                self.logger.info('image_name: ', base_name)
-                self.logger.info('caption: ', caption)
-                self.logger.info('who_caption: ', who_caption)
+                print('image_name: ', base_name)
+                print('caption: ', caption)
+                print('who_caption: ', who_caption)
 
             except Exception as e:
                 self.logger.warning(f"Error validating pair {base_name}: {str(e)}")
