@@ -172,6 +172,8 @@ class CustomOrvDataset(Dataset):
             "kim-dokja-degraded-fable",
             "orv-style",
             "manhwa drawn using omniscient reader's viewpoint style",
+            "omniscient reader's viewpoint manhwa",
+            "drawn in omniscient reader's viewpoint style",
             "Omniscient Reader's Viewpoint Manhwa",
             "kim dokja,",
             "two speech bubbles",
