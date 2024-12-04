@@ -180,6 +180,7 @@ class CustomOrvDataset(Dataset):
             "korean sound effects",
             "1 thought bubble",
             "1 speech bubble",
+            '.,',
         ]
 
         # Patterns to remove completely (with trailing punctuation)
