@@ -77,6 +77,7 @@ class CustomOrvDataset(Dataset):
         "What's happening in this image?",
         "Describe the contents of this image.",
     ]
+    data_pairs = None
 
     def __init__(
         self,
@@ -160,6 +161,7 @@ class CustomOrvDataset(Dataset):
             raise
 
     def _clean_caption(self, caption: str) -> str:
+        # print(f'~~~~~ CLEANING CAPTION: {caption}')
         """Clean captions by removing specific character form patterns and terms."""
 
         # Specific terms to always remove
@@ -169,10 +171,15 @@ class CustomOrvDataset(Dataset):
             "jung-heewon",
             "lee-hyunsung",
             "lee-gilyoung",
+            "yoo-sangah",
             "kim-dokja-degraded-fable",
             "orv-style",
+            "shin-yooseung",
+            "Manhwa drawn using omniscient reader's viewpoint style",
             "manhwa drawn using omniscient reader's viewpoint style",
             "omniscient reader's viewpoint manhwa",
+            "Drawn in omniscient reader's viewpoint style",
+            "Drawn in Omniscient Reader's Viewpoint style",
             "drawn in omniscient reader's viewpoint style",
             "Omniscient Reader's Viewpoint Manhwa",
             "kim dokja,",
@@ -180,7 +187,10 @@ class CustomOrvDataset(Dataset):
             "korean sound effects",
             "1 thought bubble",
             "1 speech bubble",
+            "2 starstream bubbles",
+            "1 starstream bubble",
             '.,',
+            "glitch,",
         ]
 
         # Patterns to remove completely (with trailing punctuation)
@@ -216,26 +226,33 @@ class CustomOrvDataset(Dataset):
 
         cleaned_caption = caption
 
-        # Remove specific full terms with their trailing punctuation
-        for term in terms_to_remove:
-            for punct in [" ", ", ", ". "]:
-                cleaned_caption = cleaned_caption.replace(f"{term}{punct}", "")
-            if cleaned_caption.endswith(term):
-                cleaned_caption = cleaned_caption[: -len(term)]
-
         # Handle complete removal patterns
         for pattern_name, pattern in removal_patterns.items():
             cleaned_caption = re.sub(pattern, '', cleaned_caption)
 
+        for term in ['.,']:
+            cleaned_caption = cleaned_caption.replace(f"{term}", ".")
+
+        # Remove specific full terms with their trailing punctuation
+        for term in terms_to_remove:
+            for punct in [" ", ", ", ". ", '.,', '']:
+                cleaned_caption = cleaned_caption.replace(f"{term}{punct}", "")
+                # print(f'******** attempted to replace: {term}{punct}')
+                # print(f'cleaned_caption: {cleaned_caption}')
+            if cleaned_caption.endswith(term):
+                cleaned_caption = cleaned_caption[: -len(term)]
+
         # Replace character form patterns with base names
         for name, pattern in character_patterns.items():
+            # print(f'subbing for pattern: {pattern} for name: {name}')
             cleaned_caption = re.sub(pattern, name, cleaned_caption)
+            # print(f'cleaned_caption: {cleaned_caption}')
 
         # Clean up base character names if requested
         base_names = [
-            "kim dokja",
-            "yoo joonghyuk",
-            "jung heewon",
+            # "kim dokja",
+            # "yoo joonghyuk",
+            # "jung heewon",
             # Add more base names as needed
         ]
 
@@ -298,20 +315,20 @@ class CustomOrvDataset(Dataset):
                     )
                     continue
 
+                cleaned_caption = self._clean_caption(caption) if caption else caption
                 valid_pairs.append(
                     {
                         "image_path": image_path,
                         "image_name": base_name,
-                        "caption": caption,
+                        "caption": cleaned_caption,
                         "who_caption": who_caption,
                     }
                 )
-                print('image_name: ', base_name)
-                print('caption: ', caption)
-                print('who_caption: ', who_caption)
+                # print(f'valid_pairs: {valid_pairs}')
+                print(f'caption: {cleaned_caption}')
 
             except Exception as e:
-                self.logger.warning(f"Error validating pair {base_name}: {str(e)}")
+                self.logger.exception(f"Error validating pair {base_name}: {str(e)}")
                 continue
 
         return valid_pairs
@@ -368,7 +385,7 @@ class CustomOrvDataset(Dataset):
                         "content": [
                             {
                                 "type": "text",
-                                "text": "Can you describe what's happening in this image?",
+                                "text": "Please describe accurately who is in this image and what's happening, including position and actions.",
                             }
                         ],
                     },
@@ -393,10 +410,12 @@ class CustomOrvDataset(Dataset):
                 pair["image_name"], pair["caption"], pair["who_caption"]
             )
 
+            print(f'qa_pairs: {qa_pairs}')
+
             # Insert image into first question
             qa_pairs[0]["content"].insert(0, {"type": "image", "image": image})
 
-            return {"messages": qa_pairs}
+            return {"messages": qa_pairs, "qa_pairs": qa_pairs}
 
         except Exception as e:
             self.logger.error(f"Error loading sample {idx}: {str(e)}")
